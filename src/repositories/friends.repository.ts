@@ -12,9 +12,24 @@ export class FriendRepository{
     }
 
     private constructor(){}
+    
     addFriend(friend:iFriend){
         this.friends.push(friend);
         console.log('Friend added to repository:',friend);
+        return friend;
+    }
+
+    removeFriend(id:string): boolean {
+        const index = this.friends.findIndex(friend => friend.id === id);
+        if(index !== -1){
+            this.friends.splice(index, 1);
+            return true;
+        }
+        return false;
+    }
+
+    findFriendById(id:string){
+        return this.friends.find(friend=>friend.id === id)
     }
 
     findFriendByEmail(email:string){
