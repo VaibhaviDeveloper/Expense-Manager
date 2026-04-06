@@ -13,7 +13,31 @@ export class FriendsController{
         return this.repository.findFriendByPhone(phone) !== undefined;
     }
 
+    checkNameExists(name:string): boolean {
+        return this.repository.findFriendByName(name) !== undefined;
+    }
+
+    getFriendByEmail(email: string): iFriend | null {
+        return this.repository.findFriendByEmail(email) || null;
+    }
+
+    getFriendByPhone(phone: string): iFriend | null {
+        return this.repository.findFriendByPhone(phone) || null;
+    }
+
+    getFriendByName(name: string): iFriend | null {
+        return this.repository.findFriendByName(name) || null;
+    }
+
     addFriend(friend:iFriend): ReturnType<iFriend | null> {
+        // Check if name already exists
+        if(this.checkNameExists(friend.name)) {
+            return {
+                success: 'false',
+                data: null
+            };
+        }
+
         // Check if email already exists
         if(this.checkEmailExists(friend.email)) {
             return {
@@ -37,6 +61,15 @@ export class FriendsController{
             data: addedFriend
         };
     }
+
+    searchFriends(query:string): ReturnType<{data:iFriend[], matched:number, total:number}> {
+       const result = this.repository.searchFriends(query);
+  return {
+    success: result.matched <= 0 ? 'false' : 'true',
+    data: result  
+  }
+      }
+      
 
     removeFriend(id: string): ReturnType<boolean> {
         const friend = this.repository.findFriendById(id);
@@ -83,6 +116,39 @@ export class FriendsController{
         return {
             success: removed ? 'true' : 'false',
             data: removed
+        };
+    }
+
+    updateFriend(id: string, updatedData: Partial<Omit<iFriend, 'id'>>): ReturnType<iFriend | null> {
+        const existingFriend = this.repository.findFriendById(id);
+        if (!existingFriend) {
+            return {
+                success: 'false',
+                data: null
+            };
+        }
+
+        // Check if updating email and it already exists for another friend
+        if (updatedData.email && updatedData.email !== existingFriend.email && this.checkEmailExists(updatedData.email)) {
+            return {
+                success: 'false',
+                data: null
+            };
+        }
+
+        // Check if updating phone and it already exists for another friend
+        if (updatedData.phone && updatedData.phone !== existingFriend.phone && this.checkPhoneExists(updatedData.phone)) {
+            return {
+                success: 'false',
+                data: null
+            };
+        }
+
+        console.log('Updating friend in database...', { id, updatedData });
+        const updatedFriend = this.repository.updateFriend(id, updatedData);
+        return {
+            success: updatedFriend ? 'true' : 'false',
+            data: updatedFriend
         };
     }
 }

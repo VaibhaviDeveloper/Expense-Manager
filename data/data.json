@@ -1,0 +1,52 @@
+{
+  "friends": [
+    {
+      "id": "test-123",
+      "name": "John Smith",
+      "email": "johnsmith@example.com",
+      "phone": "9876543210",
+      "balance": 100,
+      "address": "123 Main St"
+    },
+    {
+      "id": "1775457878082",
+      "name": "Vaibhavi",
+      "email": "vaibhvai@gmail.com",
+      "phone": "4567282",
+      "address": "nayak house",
+      "balance": 670
+    },
+    {
+      "id": "1775458990098",
+      "name": "paru",
+      "email": "paru@gmail.com",
+      "phone": "67890",
+      "address": "paru house",
+      "balance": -890
+    },
+    {
+      "id": "1775459344366",
+      "name": "Vaibhavi",
+      "email": "rgd",
+      "phone": "eds",
+      "address": "efs",
+      "balance": 90
+    },
+    {
+      "id": "1775465412456",
+      "name": "Vaibhavi",
+      "email": "nayak@gmail.com",
+      "phone": "3456789",
+      "address": "xyz house",
+      "balance": 450
+    },
+    {
+      "id": "1775468293494",
+      "name": "dfg",
+      "email": "Vaibhavi@2004",
+      "phone": "7892902491",
+      "address": "nayak house",
+      "balance": 789
+    }
+  ]
+}

@@ -1,9 +1,12 @@
 import type { PageOptions } from "../core/page-option.js";
 import type { iFriend } from "../models/friend.model.js";
+import { AppDBManager } from "../models/db-manager.js";
 
 export class FriendRepository{
     private static instance: FriendRepository;
     private friends:iFriend[] = [];
+    private dbManager = AppDBManager.getInstance();
+    
     static getInstance(){
         if(!FriendRepository.instance){
             FriendRepository.instance = new FriendRepository();
@@ -11,11 +14,32 @@ export class FriendRepository{
         return FriendRepository.instance;
     }
 
-    private constructor(){}
+    private constructor(){
+        this.loadFriendsFromDB();
+    }
+
+    private loadFriendsFromDB() {
+        const friendsTable = this.dbManager.getDB().table('friends');
+        this.friends = friendsTable as unknown as iFriend[];
+        console.log('Friends loaded from database:', this.friends.length, 'friends');
+    }
+
+    private async persistToDB() {
+        try {
+            // Get the database instance and directly set the friends table
+            const db = this.dbManager.getDB();
+            const dataStore = (db as any).dataStore;
+            dataStore.friends = [...this.friends];
+            await this.dbManager.save();
+        } catch (err) {
+            console.error('Error persisting friends to database:', err);
+        }
+    }
     
     addFriend(friend:iFriend){
         this.friends.push(friend);
         console.log('Friend added to repository:',friend);
+        this.persistToDB().catch(err => console.error('Error persisting friend:', err));
         return friend;
     }
 
@@ -23,6 +47,7 @@ export class FriendRepository{
         const index = this.friends.findIndex(friend => friend.id === id);
         if(index !== -1){
             this.friends.splice(index, 1);
+            this.persistToDB().catch(err => console.error('Error persisting removal:', err));
             return true;
         }
         return false;
@@ -40,18 +65,33 @@ export class FriendRepository{
         return this.friends.find(friend=>friend.phone === phone)
     }
 
+    findFriendByName(name:string){
+        return this.friends.find(friend=>friend.name === name)
+    }
+
     searchFriends(query:string,pageOption?:PageOptions){
         const lowerQuery = query.toLowerCase();
-        const filtered =  this.friends.filter(friend=>{
+        const filtered = this.friends.filter(friend =>
             friend.name.toLowerCase().includes(lowerQuery) ||
             friend.email.toLowerCase().includes(lowerQuery) ||
             friend.phone.toLowerCase().includes(lowerQuery)
-        })
+        );
 
         return {
             data:filtered.slice((pageOption?.offset || 0), (pageOption?.offset || 0) + (pageOption?.limit || 5)),
             matched: filtered.length,
             total:this.friends.length
         }
+    }
+
+    updateFriend(id: string, updatedData: Partial<Omit<iFriend, 'id'>>): iFriend | null {
+        const index = this.friends.findIndex(friend => friend.id === id);
+        if (index === -1) {
+            return null;
+        }
+        this.friends[index] = { ...this.friends[index], ...updatedData } as iFriend;
+        console.log('Friend updated in repository:', this.friends[index]);
+        this.persistToDB().catch(err => console.error('Error persisting update:', err));
+        return this.friends[index]!;
     }
 }

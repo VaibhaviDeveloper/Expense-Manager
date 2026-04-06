@@ -19,12 +19,14 @@ export const openInteractionManager = () => {
     return new Promise((resolve) => {
       rl.question(
         question + `${defaultAnswer ? "(" + defaultAnswer + ")" : ""}`,
-        (answer: string) => {
+        async (answer: string) => {
           if (validator && !validator(answer)) {
             console.log("Invalid");
-            resolve(ask(question, { defaultAnswer, validator }));
+            const result = await ask(question, { defaultAnswer, validator });
+            resolve(result);
+          } else {
+            resolve(answer || defaultAnswer);
           }
-          resolve(answer || defaultAnswer);
         },
       );
     });
@@ -34,14 +36,21 @@ export const openInteractionManager = () => {
     choices.forEach((choice) => {
       console.log(`${choice.value}. ${choice.label}`);
     });
-    const choice = await ask("Please your choice", {
+    const choice = await ask("Please your choice: ", {
       validator: (input) =>{
-        if(optional && input.trim()=== ''){
+        const trimmedInput = input.trim();
+        // Check if input starts with a valid choice value
+        if(optional && trimmedInput === ''){
           return true;
         }
-        return choices.some((choice) => choice.value === input)},
+        // Extract first part before space or take the whole input
+        const firstPart = trimmedInput.split(/[\s.]/)[0];
+        return choices.some((choice) => choice.value === firstPart);
+      },
     });
-    return choices!.find(c=>c.value===choice)
+    //  Extract just the choice value from the input
+    const choiceValue = choice?.trim().split(/[\s.]/)[0];
+    return choices!.find(c=>c.value===choiceValue)
   };
 
   const close = ()=>{
