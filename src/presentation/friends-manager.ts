@@ -1,4 +1,7 @@
 import { numberValidator } from "../core/validators/number-validator.js";
+import { emailValidator } from "../core/validators/email-validator.js";
+import { phoneValidator } from "../core/validators/phoneNumber-validator.js";
+import { requiredValidator } from "../core/validators/empty-validator.js";
 import { FriendsController } from "../controller/friends.controller.js";
 import { openInteractionManager, type Choice } from "./interaction-manager.js";
 import type { iFriend } from "../models/friend.model.js";
@@ -18,17 +21,22 @@ const addFriend = async (ask: any)=>{
     try {
         
         const name = await ask('Enter friend name: ');
-        if (controller.checkNameExists(name)) {
-            console.log('\n✗ Friend with this name already exists.');
-            return;
-        }
-
         let email;
         do {
             email = await ask('Enter friend email: ');
+            
             if (controller.checkEmailExists(email)) {
                 console.log('Email already exists. Please enter a different email.');
             }
+          if(email && !emailValidator(email)) {
+            console.log('Invalid email format. Please enter a valid email.');
+            email = null; // Reset email to trigger the loop again
+          }
+          if(email && email.trim() && !requiredValidator(email)) {
+            console.log('Email cannot be empty. Please enter a valid email.');
+            email = null; // Reset email to trigger the loop again
+          }
+
         } while (controller.checkEmailExists(email));
 
         let phone;
@@ -37,9 +45,20 @@ const addFriend = async (ask: any)=>{
             if (controller.checkPhoneExists(phone)) {
                 console.log('Phone number already exists. Please enter a different phone number.');
             }
+            if(phone && !phoneValidator(phone)) {
+                console.log('Invalid phone number format. Please enter a valid 10-digit phone number.');
+                phone = null; // Reset phone to trigger the loop again
+            } 
+            if(phone && phone.trim() && !requiredValidator(phone)) {
+                console.log('Phone number cannot be empty. Please enter a valid phone number.');
+                phone = null; // Reset phone to trigger the loop again
+            }  
         } while (controller.checkPhoneExists(phone));
 
         const address = await ask('Enter friend address: ');
+        if(address && !requiredValidator(address)) {
+            console.log('Address cannot be empty. Please enter a valid address.');
+        }
         const openingBalance = await ask('Enter opening balance (positive means they owe you, negative means you owe them): ', { validator: numberValidator });
 
         const friend = {
@@ -51,7 +70,7 @@ const addFriend = async (ask: any)=>{
             balance: Number(openingBalance)
         };
 
-        const result = controller.addFriend(friend);
+        const result = await controller.addFriend(friend);
         
         if(result.success === 'true') {
             console.log('\n✓ Friend added successfully!', result.data);

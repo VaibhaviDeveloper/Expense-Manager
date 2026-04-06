@@ -25,23 +25,43 @@ export class FriendRepository{
     }
 
     private async persistToDB() {
-        try {
-            // Get the database instance and directly set the friends table
-            const db = this.dbManager.getDB();
-            const dataStore = (db as any).dataStore;
-            dataStore.friends = [...this.friends];
-            await this.dbManager.save();
-        } catch (err) {
-            console.error('Error persisting friends to database:', err);
+    try {
+        const db = this.dbManager.getDB();
+        console.log("DB object:", db);
+
+        if (!(db as any).dataStore) {
+            throw new Error("dataStore is undefined");
         }
+
+        (db as any).dataStore.friends = [...this.friends];
+
+        
+        await this.dbManager.save();
+
+        console.log("Save successful ✅");
+
+    } catch (err) {
+        console.error('❌ Error persisting friends to database:', err);
+        throw err;
     }
+}
     
-    addFriend(friend:iFriend){
-        this.friends.push(friend);
-        console.log('Friend added to repository:',friend);
-        this.persistToDB().catch(err => console.error('Error persisting friend:', err));
+   async addFriend(friend: iFriend) {
+    this.friends.push(friend);
+    console.log('Friend added to repository:', friend);
+
+    try {
+        await this.persistToDB(); // ✅ wait for DB
         return friend;
+    } catch (err) {
+        console.error('Error persisting friend:', err);
+
+        // rollback
+        this.friends.pop();
+
+        return null;
     }
+}
 
     removeFriend(id:string): boolean {
         const index = this.friends.findIndex(friend => friend.id === id);

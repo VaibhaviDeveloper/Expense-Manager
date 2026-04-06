@@ -29,7 +29,7 @@ export class FriendsController{
         return this.repository.findFriendByName(name) || null;
     }
 
-    addFriend(friend:iFriend): ReturnType<iFriend | null> {
+    async addFriend(friend:iFriend):Promise< ReturnType<iFriend | null>> {
         // Check if name already exists
         if(this.checkNameExists(friend.name)) {
             return {
@@ -55,7 +55,7 @@ export class FriendsController{
         }
 
         console.log('Adding friend to database...', friend)
-        const addedFriend = this.repository.addFriend(friend);
+        const addedFriend = await this.repository.addFriend(friend);
         return {
             success: 'true',
             data: addedFriend
