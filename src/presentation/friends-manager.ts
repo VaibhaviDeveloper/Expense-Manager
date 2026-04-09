@@ -1,12 +1,12 @@
-import { numberValidator } from "../core/validators/number-validator.js";
 import { emailValidator } from "../core/validators/email-validator.js";
 import { phoneValidator } from "../core/validators/phoneNumber-validator.js";
 import { requiredValidator } from "../core/validators/empty-validator.js";
 import { FriendsController } from "../controller/friends.controller.js";
-import { openInteractionManager, type Choice } from "./interaction-manager.js";
 import type { iFriend } from "../models/friend.model.js";
 
 const controller = new FriendsController();
+
+type Choice = { label: string; value: string };
 
 const options: Choice[] = [
   { label: "Add Friend", value: "1" },
@@ -17,250 +17,297 @@ const options: Choice[] = [
   { label: "Back", value: "6" },
 ];
 
-const addFriend = async (ask: any)=>{
-    try {
-        
-        const name = await ask('Enter friend name: ');
-        let email;
-        do {
-            email = await ask('Enter friend email: ');
-            
-            if (controller.checkEmailExists(email)) {
-                console.log('Email already exists. Please enter a different email.');
-            }
-          if(email && !emailValidator(email)) {
-            console.log('Invalid email format. Please enter a valid email.');
-            email = null; // Reset email to trigger the loop again
-          }
-          if(email && email.trim() && !requiredValidator(email)) {
-            console.log('Email cannot be empty. Please enter a valid email.');
-            email = null; // Reset email to trigger the loop again
-          }
 
-        } while (controller.checkEmailExists(email));
+const addFriend = async (ask: any) => {
+  const name = await ask('Enter friend name: ', { validator: requiredValidator('name') });
 
-        let phone;
-        do {
-            phone = await ask('Enter friend phone number: ');
-            if (controller.checkPhoneExists(phone)) {
-                console.log('Phone number already exists. Please enter a different phone number.');
-            }
-            if(phone && !phoneValidator(phone)) {
-                console.log('Invalid phone number format. Please enter a valid 10-digit phone number.');
-                phone = null; // Reset phone to trigger the loop again
-            } 
-            if(phone && phone.trim() && !requiredValidator(phone)) {
-                console.log('Phone number cannot be empty. Please enter a valid phone number.');
-                phone = null; // Reset phone to trigger the loop again
-            }  
-        } while (controller.checkPhoneExists(phone));
+  let email: string;
+  while (true) {
+    email = await ask('Enter friend email: ', { validator: requiredValidator('email')  });
 
-        const address = await ask('Enter friend address: ');
-        if(address && !requiredValidator(address)) {
-            console.log('Address cannot be empty. Please enter a valid address.');
-        }
-        const openingBalance = await ask('Enter opening balance (positive means they owe you, negative means you owe them): ', { validator: numberValidator });
-
-        const friend = {
-            id: Date.now().toString(),
-            name,
-            email,
-            phone,
-            address,
-            balance: Number(openingBalance)
-        };
-
-        const result = await controller.addFriend(friend);
-        
-        if(result.success === 'true') {
-            console.log('\n✓ Friend added successfully!', result.data);
-        } else {
-            console.log('\n✗ Failed to add friend.');
-        }
-    } catch(error) {
-        console.error('Error adding friend:', error);
+    if (!emailValidator(email)) {
+      console.log('❌ Invalid email format.');
+      continue;
     }
+
+    if (controller.checkEmailExists(email)) {
+      console.log('❌ Email already exists.');
+      continue;
+    }
+
+    break;
+  }
+
+  let phone: string;
+  while (true) {
+    phone = await ask('Enter friend phone number: ', { validator: requiredValidator('phone') });
+
+    if (!phoneValidator(phone)) {
+      console.log('❌ Invalid phone number.');
+      continue;
+    }
+
+    if (controller.checkPhoneExists(phone)) {
+      console.log('❌ Phone already exists.');
+      continue;
+    }
+
+    break;
+  }
+
+  const address = await ask('Enter friend address: ', { validator: requiredValidator('address') });
+
+  let balance: number;
+  while (true) {
+    const input = await ask('Enter opening balance: ', { validator: requiredValidator('balance') });
+
+    balance = Number(input);
+    if (isNaN(balance)) {
+      console.log('❌ Enter a valid number.');
+      continue;
+    }
+
+    break;
+  }
+
+  const friend: iFriend = {
+    id: Date.now().toString(),
+    name: name.trim(),
+    email: email.trim(),
+    phone: phone.trim(),
+    address: address.trim(),
+    balance
+  };
+
+  const result = await controller.addFriend(friend);
+
+  if (result.success === 'true') {
+    console.log('\n✅ Friend added successfully!');
+    console.table(result.data);
+  } else {
+    console.log('\n❌ Failed to add friend.');
+  }
 };
 
-const searchFriend = async (ask: any)=>{
-    const query = await ask('Enter name, email or phone to search: ');
-    const result = controller.searchFriends(query);
-    const payload = result.data;
-    console.log(`\nFound ${payload.matched} matching friends (showing ${payload.data.length} of ${payload.total} total):`);
 
-    if (payload.data.length > 0) {
-        // Use console.table for clean tabular display
-        const tableData = payload.data.map(friend => ({
-            Name: friend.name,
-            Email: friend.email,
-            Phone: friend.phone,
-            Balance: friend.balance,
-            Address: friend.address
-        }));
-        console.table(tableData);
-    } else {
-        console.log('No friends found matching your search.');
-    }
+
+const searchFriend = async (ask: any) => {
+  const query = await ask('Enter name/email/phone: ', { validator: requiredValidator });
+
+  const result = controller.searchFriends(query);
+  const payload = result.data;
+
+  console.log(`\nFound ${payload.matched} friend(s)`);
+
+  if (payload.data.length > 0) {
+    console.table(payload.data);
+  } else {
+    console.log('No friends found.');
+  }
 };
+
+
 
 const listAllFriends = () => {
-    const result = controller.searchFriends(''); // Empty query to get all friends
-    const payload = result.data;
-    console.log(`\nAll Friends (${payload.total} total):`);
+  const result = controller.getAllFriends();
+  const friends = result.data;
 
-    if (payload.data.length > 0) {
-        const tableData = payload.data.map(friend => ({
-            Name: friend.name,
-            Email: friend.email,
-            Phone: friend.phone,
-            Balance: friend.balance,
-            Address: friend.address
-        }));
-        console.table(tableData);
+  console.log(`\nAll Friends (${friends.length})`);
+
+  if (friends.length > 0) {
+    console.table(friends);
+  } else {
+    console.log('No friends available.');
+  }
+};
+
+
+
+const updateFriend = async (ask: any, choose: any) => {
+  const option = await choose('Update by:', [
+    { label: 'Email', value: '1' },
+    { label: 'Phone', value: '2' },
+    { label: 'Cancel', value: '3' }
+  ]);
+
+  if (option.value === '3') return;
+
+  let identifier: string;
+
+  if (option.value === '1') {
+    identifier = await ask('Enter email: ', { validator: requiredValidator });
+    if (!emailValidator(identifier)) {
+      console.log('❌ Invalid email.');
+      return;
+    }
+  } else {
+    identifier = await ask('Enter phone: ', { validator: requiredValidator });
+    if (!phoneValidator(identifier)) {
+      console.log('❌ Invalid phone.');
+      return;
+    }
+  }
+
+  const current = option.value === '1'
+    ? controller.getFriendByEmail(identifier)
+    : controller.getFriendByPhone(identifier);
+
+  if (!current) {
+    console.log('❌ Friend not found.');
+    return;
+  }
+
+  console.table(current);
+  console.log('\nPress Enter to skip field');
+
+  const newName = await ask(`Name (${current.name}): `);
+  const newEmail = await ask(`Email (${current.email}): `);
+  const newPhone = await ask(`Phone (${current.phone}): `);
+  const newAddress = await ask(`Address (${current.address}): `);
+  const newBalance = await ask(`Balance (${current.balance}): `);
+
+  const updates: Partial<Omit<iFriend, 'id'>> = {};
+
+  if (newName?.trim()) updates.name = newName.trim();
+
+  if (newEmail?.trim()) {
+    if (!emailValidator(newEmail)) {
+      console.log('❌ Invalid email.');
+      return;
+    }
+    if (controller.checkEmailExists(newEmail)) {
+      console.log('❌ Email exists.');
+      return;
+    }
+    updates.email = newEmail.trim();
+  }
+
+  if (newPhone?.trim()) {
+    if (!phoneValidator(newPhone)) {
+      console.log('❌ Invalid phone.');
+      return;
+    }
+    if (controller.checkPhoneExists(newPhone)) {
+      console.log('❌ Phone exists.');
+      return;
+    }
+    updates.phone = newPhone.trim();
+  }
+
+  if (newAddress?.trim()) updates.address = newAddress.trim();
+
+  if (newBalance?.trim()) {
+    const val = Number(newBalance);
+    if (!isNaN(val)) updates.balance = val;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    console.log('❌ No changes.');
+    return;
+  }
+
+  const result = controller.updateFriend(current.id, updates);
+
+  if (result.success === 'true') {
+    console.log('✅ Updated successfully');
+    console.table(result.data);
+  } else {
+    console.log('❌ Update failed');
+  }
+};
+
+
+
+const removeFriend = async (ask: any, choose: any) => {
+  try {
+    const option = await choose(
+      '\nRemove friend by:',
+      [
+        { label: 'Email', value: '1' },
+        { label: 'Phone', value: '2' },
+        { label: 'Cancel', value: '3' }
+      ]
+    );
+
+    if (option.value === '3') return;
+
+    let identifier: string;
+    let friend;
+
+    
+    if (option.value === '1') {
+      identifier = await ask('Enter friend email: ', {
+        validator: requiredValidator
+      });
+
+      if (!emailValidator(identifier)) {
+        console.log('❌ Invalid email.');
+        return;
+      }
+
+      friend = controller.getFriendByEmail(identifier);
     } else {
-        console.log('No friends in the system.');
+      identifier = await ask('Enter friend phone: ', {
+        validator: requiredValidator
+      });
+
+      if (!phoneValidator(identifier)) {
+        console.log('❌ Invalid phone number.');
+        return;
+      }
+
+      friend = controller.getFriendByPhone(identifier);
     }
+
+    
+    if (!friend) {
+      console.log('\n❌ Friend not found.');
+      return;
+    }
+
+    
+    console.log('\n⚠️ You are about to delete this friend:');
+    console.table(friend);
+
+   
+    const confirm = await ask('Type YES to confirm deletion: ');
+
+    const isConfirmed = confirm?.trim().toLowerCase() === 'yes';
+
+    if (!isConfirmed) {
+      console.log('❌ Deletion cancelled.');
+      return;
+    }
+
+    
+    const result = option.value === '1'
+      ? controller.removeFriendByEmail(identifier)
+      : controller.removeFriendByPhone(identifier);
+
+    if (result.success === 'true') {
+      console.log('\n✅ Friend deleted successfully!');
+    } else {
+      console.log('\n❌ Failed to delete.');
+    }
+
+  } catch (error) {
+    console.error('Error removing friend:', error);
+  }
 };
 
-const updateFriend = async (ask: any, choose: any)=>{
-    try {
-        // First, let user choose how to identify the friend to update
-        const updateOption = await choose(
-            '\nUpdate friend by:',
-            [
-                { label: 'Email', value: '1' },
-                { label: 'Phone', value: '2' },
-                { label: 'Cancel', value: '3' }
-            ]
-        );
 
-        if(updateOption?.value === '3') {
-            return;
-        }
 
-        // Get the identifier
-        let identifier;
-        if(updateOption?.value === '1') {
-            identifier = await ask('Enter friend email: ');
-        } else {
-            identifier = await ask('Enter friend phone: ');
-        }
+export const manageFriends = async (ask: any, choose: any) => {
+  while (true) {
+    const choice = await choose('\n--- Manage Friends ---', options, false);
 
-        // Find the friend first to show current data
-        let currentFriend;
-        if(updateOption?.value === '1') {
-            currentFriend = controller.getFriendByEmail(identifier);
-        } else {
-            currentFriend = controller.getFriendByPhone(identifier);
-        }
-
-        if(!currentFriend) {
-            console.log('\n✗ Friend not found.');
-            return;
-        }
-
-        console.log('\nCurrent friend data:');
-        console.table({
-            Name: currentFriend.name,
-            Email: currentFriend.email,
-            Phone: currentFriend.phone,
-            Address: currentFriend.address,
-            Balance: currentFriend.balance
-        });
-
-        // Ask for updated data
-        console.log('\nEnter new values (press Enter to keep current value):');
-        const newName = await ask(`Name (${currentFriend.name}): `);
-        const newEmail = await ask(`Email (${currentFriend.email}): `);
-        const newPhone = await ask(`Phone (${currentFriend.phone}): `);
-        const newAddress = await ask(`Address (${currentFriend.address}): `);
-        const newBalanceInput = await ask(`Balance (${currentFriend.balance}): `, { validator: numberValidator });
-
-        // Build update object with only non-empty values
-        const updates: Partial<Omit<iFriend, 'id'>> = {};
-        
-        if(newName && newName.trim()) updates.name = newName.trim();
-        if(newEmail && newEmail.trim()) updates.email = newEmail.trim();
-        if(newPhone && newPhone.trim()) updates.phone = newPhone.trim();
-        if(newAddress && newAddress.trim()) updates.address = newAddress.trim();
-        if(newBalanceInput && newBalanceInput.trim()) updates.balance = Number(newBalanceInput.trim());
-
-        if(Object.keys(updates).length === 0) {
-            console.log('\n✗ No changes made.');
-            return;
-        }
-
-        // Update the friend
-        const result = controller.updateFriend(currentFriend.id, updates);
-        
-        if(result.success === 'true') {
-            console.log('\n✓ Friend updated successfully!');
-            console.log('Updated data:', result.data);
-        } else {
-            console.log('\n✗ Failed to update friend. Email or phone already exists.');
-        }
-    } catch(error) {
-        console.error('Error updating friend:', error);
+    switch (choice.value) {
+      case '1': await addFriend(ask); break;
+      case '2': await searchFriend(ask); break;
+      case '3': listAllFriends(); break;
+      case '4': await updateFriend(ask, choose); break;
+      case '5': await removeFriend(ask, choose); break;
+      case '6': return;
     }
-};
-
-const removeFriend = async (ask: any, choose: any)=>{
-    try {
-        const removeOption = await choose(
-            '\nRemove friend by:',
-            [
-                { label: 'Email', value: '1' },
-                { label: 'Phone', value: '2' },
-                { label: 'Cancel', value: '3' }
-            ]
-        );
-
-        if(removeOption?.value === '3') {
-            return;
-        }
-
-        let result;
-        if(removeOption?.value === '1') {
-            const email = await ask('Enter friend email: ');
-            result = controller.removeFriendByEmail(email);
-        } else {
-            const phone = await ask('Enter friend phone: ');
-            result = controller.removeFriendByPhone(phone);
-        }
-
-        if(result.success === 'true') {
-            console.log('\n✓ Friend removed successfully!');
-        } else {
-            console.log('\n✗ Failed to remove friend. Friend not found.');
-        }
-    } catch(error) {
-        console.error('Error removing friend:', error);
-    }
-};
-
-export const manageFriends = async (ask: any, choose: any)=>{
-    while(true){
-        const choice = await choose('\n--- Manage Friends ---', options, false);
-
-        switch(choice!.value){
-            case '1':
-                await addFriend(ask);
-                break;
-            case '2':
-                await searchFriend(ask);
-                break;
-            case '3':
-                listAllFriends();
-                break;
-            case '4':
-                await updateFriend(ask, choose);
-                break;
-            case '5':
-                await removeFriend(ask, choose);
-                break;
-            case '6':
-                console.log('Going back...');
-                return;
-        }
-    }
+  }
 };
